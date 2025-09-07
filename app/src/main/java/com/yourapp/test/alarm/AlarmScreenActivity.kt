@@ -295,23 +295,45 @@ class AlarmScreenActivity : AppCompatActivity() {
                 
                 // Set data source with fallback
                 val uri = ringtoneUri ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                setDataSource(this@AlarmScreenActivity, uri)
+                
+                try {
+                    setDataSource(this@AlarmScreenActivity, uri)
+                } catch (e: Exception) {
+                    Log.e("AlarmScreenActivity", "Failed to set ringtone data source: $uri", e)
+                    // Try with default alarm sound
+                    val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    setDataSource(this@AlarmScreenActivity, defaultUri)
+                }
                 
                 // Configure looping and volume
                 isLooping = true
-                setVolume(ringtoneVolume, ringtoneVolume) // CRITICAL FIX: Use user's ringtone volume setting
+                setVolume(ringtoneVolume, ringtoneVolume)
                 
-                // Prepare and start
-                prepare()
-                start()
+                // Add error listener
+                setOnErrorListener { mp, what, extra ->
+                    Log.e("AlarmScreenActivity", "MediaPlayer error: what=$what, extra=$extra")
+                    // Try to recover by playing fallback sound
+                    try {
+                        playFallbackSound()
+                    } catch (fallbackEx: Exception) {
+                        Log.e("AlarmScreenActivity", "Fallback sound also failed", fallbackEx)
+                    }
+                    true // Indicate we handled the error
+                }
                 
-                Log.d("AlarmScreenActivity", "Ringtone playback started with URI: $uri, Volume: $ringtoneVolume")
+                // Prepare and start with error handling
+                try {
+                    prepare()
+                    start()
+                    Log.d("AlarmScreenActivity", "Ringtone playback started with URI: $uri, Volume: $ringtoneVolume")
+                } catch (e: Exception) {
+                    Log.e("AlarmScreenActivity", "Failed to prepare/start ringtone", e)
+                    playFallbackSound()
+                }
             }
             
-            // Volume is already set to user preference - no gradual increase needed
-            
         } catch (e: Exception) {
-            Log.e("AlarmScreenActivity", "Failed to start ringtone playback", e)
+            Log.e("AlarmScreenActivity", "Failed to create MediaPlayer for ringtone", e)
             playFallbackSound()
         }
     }
@@ -353,9 +375,17 @@ class AlarmScreenActivity : AppCompatActivity() {
                         start()
                     }
                     
-                    setOnErrorListener { _, what, extra ->
+                    // Add error listener first
+                    setOnErrorListener { mp, what, extra ->
                         Log.e("AlarmScreenActivity", "❌ Voice overlay error: what=$what, extra=$extra")
-                        false // Return false to trigger onCompletion
+                        // Clean up on error
+                        try {
+                            release()
+                        } catch (e: Exception) {
+                            Log.e("AlarmScreenActivity", "Error releasing voice MediaPlayer", e)
+                        }
+                        voiceMediaPlayer = null
+                        false // Let the system handle the error
                     }
                     
                     prepareAsync() // Use async to avoid blocking
@@ -381,31 +411,47 @@ class AlarmScreenActivity : AppCompatActivity() {
             Log.d("AlarmScreenActivity", "🗣️ Initializing TTS for note: '$alarmNote'")
             
             tts = TextToSpeech(this) { status ->
-                if (status == TextToSpeech.SUCCESS) {
-                    Log.d("AlarmScreenActivity", "✅ TTS initialized successfully")
-                    
-                    // Configure TTS settings
-                    tts?.setSpeechRate(1.0f) // Normal speech rate
-                    tts?.setPitch(1.0f) // Normal pitch
-                    
-                    // Set audio attributes for TTS to use alarm stream
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                        val params = Bundle()
-                        params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume)
+                try {
+                    if (status == TextToSpeech.SUCCESS) {
+                        Log.d("AlarmScreenActivity", "✅ TTS initialized successfully")
                         
-                        // Start TTS with looping
-                        startTtsLoop(params)
+                        // Configure TTS settings with error handling
+                        tts?.let { ttsEngine ->
+                            try {
+                                ttsEngine.setSpeechRate(1.0f) // Normal speech rate
+                                ttsEngine.setPitch(1.0f) // Normal pitch
+                                
+                                // Check if TTS is available
+                                val result = ttsEngine.setLanguage(Locale.getDefault())
+                                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                                    Log.w("AlarmScreenActivity", "TTS language not supported, using default")
+                                }
+                                
+                                // Set audio attributes for TTS to use alarm stream
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                    val params = Bundle()
+                                    params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume)
+                                    
+                                    // Start TTS with looping
+                                    startTtsLoop(params)
+                                } else {
+                                    // For older Android versions
+                                    val params = HashMap<String, String>()
+                                    params[TextToSpeech.Engine.KEY_PARAM_STREAM] = AudioManager.STREAM_ALARM.toString()
+                                    params[TextToSpeech.Engine.KEY_PARAM_VOLUME] = ttsVolume.toString()
+                                    
+                                    // Start TTS with looping
+                                    startTtsLoopLegacy(params)
+                                }
+                            } catch (e: Exception) {
+                                Log.e("AlarmScreenActivity", "Error configuring TTS", e)
+                            }
+                        }
                     } else {
-                        // For older Android versions
-                        val params = HashMap<String, String>()
-                        params[TextToSpeech.Engine.KEY_PARAM_STREAM] = AudioManager.STREAM_ALARM.toString()
-                        params[TextToSpeech.Engine.KEY_PARAM_VOLUME] = ttsVolume.toString()
-                        
-                        // Start TTS with looping
-                        startTtsLoopLegacy(params)
+                        Log.e("AlarmScreenActivity", "❌ Failed to initialize TTS: $status")
                     }
-                } else {
-                    Log.e("AlarmScreenActivity", "❌ Failed to initialize TTS: $status")
+                } catch (e: Exception) {
+                    Log.e("AlarmScreenActivity", "Error in TTS initialization callback", e)
                 }
             }
         } catch (e: Exception) {
@@ -414,7 +460,7 @@ class AlarmScreenActivity : AppCompatActivity() {
     }
     
     private fun startTtsLoop(params: Bundle) {
-        // Create a repeating TTS loop with NO DELAY
+        // Create a repeating TTS loop with 5 second delays between repetitions
         val ttsRunnable = object : Runnable {
             override fun run() {
                 tts?.let { ttsEngine ->
@@ -422,10 +468,12 @@ class AlarmScreenActivity : AppCompatActivity() {
                         Log.d("AlarmScreenActivity", "🗣️ Speaking note: '$alarmNote'")
                         val result = ttsEngine.speak(alarmNote, TextToSpeech.QUEUE_FLUSH, params, "alarm_tts")
                         if (result == TextToSpeech.SUCCESS) {
-                            // Schedule next TTS immediately after current speech finishes (NO DELAY)
-                            handler.postDelayed(this, 100) // Minimal 100ms delay to prevent overwhelming
+                            // Schedule next TTS after 5 seconds to prevent overwhelming
+                            handler.postDelayed(this, 5000) // 5 second delay between TTS repetitions
                         } else {
                             Log.e("AlarmScreenActivity", "❌ TTS speak failed: $result")
+                            // Retry after 10 seconds if TTS fails
+                            handler.postDelayed(this, 10000)
                         }
                     }
                 }
@@ -437,7 +485,7 @@ class AlarmScreenActivity : AppCompatActivity() {
     }
     
     private fun startTtsLoopLegacy(params: HashMap<String, String>) {
-        // Create a repeating TTS loop for legacy Android
+        // Create a repeating TTS loop for legacy Android with reasonable delays
         val ttsRunnable = object : Runnable {
             override fun run() {
                 tts?.let { ttsEngine ->
@@ -446,10 +494,12 @@ class AlarmScreenActivity : AppCompatActivity() {
                         @Suppress("DEPRECATION")
                         val result = ttsEngine.speak(alarmNote, TextToSpeech.QUEUE_FLUSH, params)
                         if (result == TextToSpeech.SUCCESS) {
-                            // Schedule next TTS after a delay (repeat every 10 seconds)
-                            handler.postDelayed(this, 10000)
+                            // Schedule next TTS after 8 seconds for legacy Android
+                            handler.postDelayed(this, 8000)
                         } else {
                             Log.e("AlarmScreenActivity", "❌ TTS speak failed (legacy): $result")
+                            // Retry after 15 seconds if TTS fails
+                            handler.postDelayed(this, 15000)
                         }
                     }
                 }
@@ -558,6 +608,9 @@ class AlarmScreenActivity : AppCompatActivity() {
         }
         tts = null
         
+        // Stop all handler callbacks to prevent memory leaks
+        handler.removeCallbacksAndMessages(null)
+        
         // Stop volume increase runnable
         volumeIncreaseRunnable?.let { handler.removeCallbacks(it) }
         volumeIncreaseRunnable = null
@@ -613,23 +666,17 @@ class AlarmScreenActivity : AppCompatActivity() {
                     .setWillPauseWhenDucked(false) // Don't duck, we want full focus
                     .setOnAudioFocusChangeListener { focusChange ->
                         Log.d("AlarmScreenActivity", "Audio focus changed: $focusChange")
+                        // For alarms, we maintain volume regardless of focus changes
+                        // This ensures alarms are always audible
                         when (focusChange) {
                             AudioManager.AUDIOFOCUS_GAIN -> {
-                                Log.d("AlarmScreenActivity", "Audio focus gained - alarm has priority")
-                                // Ensure our alarm sound is playing at full volume
-                                mediaPlayer?.setVolume(1.0f, 1.0f)
+                                Log.d("AlarmScreenActivity", "Audio focus gained")
                             }
                             AudioManager.AUDIOFOCUS_LOSS,
-                            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                                // Don't stop alarm sound on focus loss - it's an alarm!
-                                Log.d("AlarmScreenActivity", "Audio focus lost but keeping alarm playing")
-                                // Force our alarm to continue playing
-                                mediaPlayer?.setVolume(1.0f, 1.0f)
-                            }
+                            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
                             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                                // Don't duck alarm sound - alarms should be at full volume
-                                Log.d("AlarmScreenActivity", "Duck request ignored - alarm at full volume")
-                                mediaPlayer?.setVolume(1.0f, 1.0f)
+                                // Keep alarm playing - alarms should not be interrupted
+                                Log.d("AlarmScreenActivity", "Audio focus lost but keeping alarm active")
                             }
                         }
                     }
@@ -637,67 +684,77 @@ class AlarmScreenActivity : AppCompatActivity() {
                 
                 val result = audioManager?.requestAudioFocus(audioFocusRequest!!)
                 Log.d("AlarmScreenActivity", "Audio focus request result: $result")
-                
-                // Force pause other media by requesting focus gain
-                if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                    Log.d("AlarmScreenActivity", "Audio focus granted - other media should pause")
-                    return true
-                } else {
-                    Log.w("AlarmScreenActivity", "Audio focus not granted: $result")
-                    return false
-                }
+                return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
                 
             } else {
-                // For older Android versions
+                // For older Android versions - simplified approach
                 @Suppress("DEPRECATION")
                 val result = audioManager?.requestAudioFocus(
                     { focusChange ->
                         Log.d("AlarmScreenActivity", "Audio focus changed (legacy): $focusChange")
-                        when (focusChange) {
-                            AudioManager.AUDIOFOCUS_GAIN -> {
-                                Log.d("AlarmScreenActivity", "Audio focus gained (legacy)")
-                                mediaPlayer?.setVolume(1.0f, 1.0f)
-                            }
-                            AudioManager.AUDIOFOCUS_LOSS,
-                            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-                            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                                // Keep alarm playing regardless of focus changes
-                                Log.d("AlarmScreenActivity", "Maintaining alarm volume despite focus change")
-                                mediaPlayer?.setVolume(1.0f, 1.0f)
-                            }
-                        }
+                        // Keep alarm playing regardless of focus changes
                     },
                     AudioManager.STREAM_ALARM,
-                    AudioManager.AUDIOFOCUS_GAIN // Use GAIN to pause other media
+                    AudioManager.AUDIOFOCUS_GAIN
                 )
                 Log.d("AlarmScreenActivity", "Audio focus request result (legacy): $result")
-                
-                if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                    Log.d("AlarmScreenActivity", "Audio focus granted (legacy) - other media should pause")
-                    return true
-                }
+                return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
             }
         } catch (e: Exception) {
             Log.e("AlarmScreenActivity", "Failed to request audio focus: ${e.message}")
             return false
         }
-        return false
     }
 
 
 
     private fun playFallbackSound() {
         try {
+            // Try notification sound first as it's more likely to be available
             val notificationUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             Log.d("AlarmScreenActivity", "Using notification sound as fallback: $notificationUri")
+            
             mediaPlayer = MediaPlayer().apply {
-                setDataSource(this@AlarmScreenActivity, notificationUri)
-                prepare()
-                start()
-                Log.d("AlarmScreenActivity", "Playing notification sound as last resort")
+                try {
+                    // Set audio attributes for alarm
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        setAudioAttributes(
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_ALARM)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .build()
+                        )
+                    } else {
+                        setAudioStreamType(AudioManager.STREAM_ALARM)
+                    }
+                    
+                    setDataSource(this@AlarmScreenActivity, notificationUri)
+                    isLooping = true
+                    prepare()
+                    start()
+                    Log.d("AlarmScreenActivity", "Fallback notification sound started successfully")
+                } catch (e: Exception) {
+                    Log.e("AlarmScreenActivity", "Notification fallback failed, trying ringtone", e)
+                    
+                    try {
+                        // Try ringtone as second fallback
+                        val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                        reset()
+                        setDataSource(this@AlarmScreenActivity, ringtoneUri)
+                        prepare()
+                        start()
+                        Log.d("AlarmScreenActivity", "Fallback ringtone sound started")
+                    } catch (e2: Exception) {
+                        Log.e("AlarmScreenActivity", "All fallback sounds failed", e2)
+                        // If all sounds fail, at least ensure vibration works if enabled
+                        release()
+                        mediaPlayer = null
+                    }
+                }
             }
         } catch (finalEx: Exception) {
-            Log.e("AlarmScreenActivity", "All ringtone attempts failed: ${finalEx.message}")
+            Log.e("AlarmScreenActivity", "Complete fallback failure: ${finalEx.message}")
+            mediaPlayer = null
         }
     }
 

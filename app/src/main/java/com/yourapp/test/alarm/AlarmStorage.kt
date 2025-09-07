@@ -28,7 +28,14 @@ class AlarmStorage(context: Context) {
         val note: String,
         val ringtoneUriString: String?,
         val ringtoneName: String,
-        val snoozeMinutes: Int
+        val snoozeMinutes: Int,
+        val voiceRecordingPath: String?,
+        val hasVoiceOverlay: Boolean,
+        val ringtoneVolume: Float,
+        val voiceVolume: Float,
+        val hasTtsOverlay: Boolean,
+        val ttsVolume: Float,
+        val hasVibration: Boolean
     )
     
     fun saveAlarms(alarms: List<AlarmItem>) {
@@ -44,7 +51,14 @@ class AlarmStorage(context: Context) {
                 note = alarm.note,
                 ringtoneUriString = alarm.ringtoneUri?.toString(),
                 ringtoneName = alarm.ringtoneName,
-                snoozeMinutes = alarm.snoozeMinutes
+                snoozeMinutes = alarm.snoozeMinutes,
+                voiceRecordingPath = alarm.voiceRecordingPath,
+                hasVoiceOverlay = alarm.hasVoiceOverlay,
+                ringtoneVolume = alarm.ringtoneVolume,
+                voiceVolume = alarm.voiceVolume,
+                hasTtsOverlay = alarm.hasTtsOverlay,
+                ttsVolume = alarm.ttsVolume,
+                hasVibration = alarm.hasVibration
             )
         }
         
@@ -84,7 +98,14 @@ class AlarmStorage(context: Context) {
                     note = serializable.note,
                     ringtoneUri = serializable.ringtoneUriString?.let { Uri.parse(it) },
                     ringtoneName = serializable.ringtoneName,
-                    snoozeMinutes = serializable.snoozeMinutes
+                    snoozeMinutes = serializable.snoozeMinutes,
+                    voiceRecordingPath = serializable.voiceRecordingPath,
+                    hasVoiceOverlay = serializable.hasVoiceOverlay,
+                    ringtoneVolume = serializable.ringtoneVolume,
+                    voiceVolume = serializable.voiceVolume,
+                    hasTtsOverlay = serializable.hasTtsOverlay,
+                    ttsVolume = serializable.ttsVolume,
+                    hasVibration = serializable.hasVibration
                 )
             }
         } catch (e: Exception) {

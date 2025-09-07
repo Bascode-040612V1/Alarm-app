@@ -763,6 +763,11 @@ class AlarmSetupActivity : AppCompatActivity() {
         textVoiceVolume.text = "${(voiceVolume * 100).toInt()}%"
         seekBarTtsVolume.progress = (ttsVolume * 100).toInt()
         textTtsVolume.text = "${(ttsVolume * 100).toInt()}%"
+        
+        // Set vibration setting
+        hasVibration = alarm.hasVibration
+        switchVibration.isChecked = hasVibration
+        
         updateVolumeControlsState()
     }
 
@@ -822,7 +827,6 @@ class AlarmSetupActivity : AppCompatActivity() {
             ringtoneUri = selectedRingtoneUri,
             ringtoneName = selectedRingtoneName,
             snoozeMinutes = snoozeMinutes,
-            volume = ringtoneVolume, // Use user-selected ringtone volume
             voiceRecordingPath = currentVoiceRecordingPath,
             hasVoiceOverlay = isVoiceOverlayEnabled,
             ringtoneVolume = ringtoneVolume, // User-selected ringtone volume

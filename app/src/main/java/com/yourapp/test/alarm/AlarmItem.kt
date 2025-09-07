@@ -16,7 +16,6 @@ data class AlarmItem(
     val ringtoneUri: Uri? = null,
     val ringtoneName: String = "Default",
     val snoozeMinutes: Int = 10,
-    val volume: Float = 0.8f, // Volume level from 0.0 to 1.0, default 80%
     val voiceRecordingPath: String? = null, // Path to recorded voice file
     val hasVoiceOverlay: Boolean = false, // Whether to overlay voice on ringtone
     val ringtoneVolume: Float = 0.8f, // Ringtone volume from 0.0 to 1.0, default 80%
@@ -37,7 +36,6 @@ data class AlarmItem(
         parcel.readParcelable(Uri::class.java.classLoader),
         parcel.readString()!!,
         parcel.readInt(),
-        parcel.readFloat(),
         parcel.readString(),
         parcel.readInt() == 1,
         parcel.readFloat(), // ringtoneVolume
@@ -58,7 +56,6 @@ data class AlarmItem(
         parcel.writeParcelable(ringtoneUri, flags)
         parcel.writeString(ringtoneName)
         parcel.writeInt(snoozeMinutes)
-        parcel.writeFloat(volume)
         parcel.writeString(voiceRecordingPath)
         parcel.writeInt(if (hasVoiceOverlay) 1 else 0)
         parcel.writeFloat(ringtoneVolume) // Add ringtone volume

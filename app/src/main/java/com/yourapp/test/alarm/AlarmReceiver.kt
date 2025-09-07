@@ -86,7 +86,9 @@ class AlarmReceiver : BroadcastReceiver() {
         
         // Also create notification as backup
         createNotificationChannel(context)
-        showNotification(context, alarmId, alarmTitle, alarmTime, alarmNote, ringtoneUri, snoozeMinutes)
+        showNotification(context, alarmId, alarmTitle, alarmTime, alarmNote, ringtoneUri, snoozeMinutes, intent, hasVibration)
+        
+        // Only vibrate if user has enabled vibration
         if (hasVibration) {
             vibrateDevice(context)
         }
@@ -254,7 +256,8 @@ class AlarmReceiver : BroadcastReceiver() {
         note: String, 
         ringtoneUri: Uri?, 
         snoozeMinutes: Int,
-        intent: Intent? = null
+        intent: Intent? = null,
+        hasVibration: Boolean = true
     ) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -285,6 +288,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 putExtra("RINGTONE_VOLUME", originalIntent.getFloatExtra("RINGTONE_VOLUME", 0.8f))
                 putExtra("VOICE_VOLUME", originalIntent.getFloatExtra("VOICE_VOLUME", 1.0f))
                 putExtra("TTS_VOLUME", originalIntent.getFloatExtra("TTS_VOLUME", 1.0f))
+                putExtra("HAS_VIBRATION", originalIntent.getBooleanExtra("HAS_VIBRATION", true))
             }
         }
         val snoozePendingIntent = PendingIntent.getBroadcast(
@@ -304,7 +308,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
         val contentText = if (note.isNotEmpty()) "$time - $note" else time
         
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_alarm)
             .setContentTitle(title)
             .setContentText(contentText)
@@ -314,12 +318,17 @@ class AlarmReceiver : BroadcastReceiver() {
             .setAutoCancel(false)
             .setOngoing(true)
             .setSound(null) // Explicitly set no sound for notification
-            .setVibrate(longArrayOf(0, 1000, 1000, 1000))
             .setContentIntent(pendingIntent)
             .addAction(R.drawable.ic_snooze, "Snooze ($snoozeMinutes min)", snoozePendingIntent)
             .addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent)
             .setFullScreenIntent(pendingIntent, true)
-            .build()
+        
+        // Only add vibration if user has enabled it
+        if (hasVibration) {
+            notificationBuilder.setVibrate(longArrayOf(0, 1000, 1000, 1000))
+        }
+        
+        val notification = notificationBuilder.build()
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(alarmId, notification)
