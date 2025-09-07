@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Dark/Blue/Red Gradient Theme Colors -->
+    <color name="background_color">#1A1A2E</color>
+    <color name="primary_text">#FFFFFF</color>
+    <color name="secondary_text">#E0E0E0</color>
+    <color name="time_background">#16213E</color>
+    <color name="card_background">#0F3460</color>
+    <color name="fab_color">#E94560</color>
+    <color name="delete_color">#FF4757</color>
+    <color name="border_color">#533A71</color>
+    
+    <!-- Gradient Colors -->
+    <color name="gradient_start">#1A1A2E</color>
+    <color name="gradient_middle">#16213E</color>
+    <color name="gradient_end">#0F3460</color>
+    <color name="accent_red">#E94560</color>
+    <color name="accent_blue">#0F4C75</color>
+    
+    <!-- Alarm Screen Colors -->
+    <color name="snooze_button_color">#FF6B35</color>
+    <color name="dismiss_button_color">#E94560</color>
+    
+    <!-- Chip Colors -->
+    <color name="chip_selected">#E94560</color>
+    <color name="chip_unselected">#533A71</color>
+    <color name="chip_text_selected">#FFFFFF</color>
+    <color name="chip_text_unselected">#E0E0E0</color>
+</resources>
