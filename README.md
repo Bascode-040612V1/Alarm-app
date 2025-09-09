@@ -58,7 +58,7 @@ A feature-rich Android alarm clock application built with Kotlin, offering advan
 ### Build Instructions
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Bascode-040612V1/Alarm-app
    cd Alarm
    ```
 
