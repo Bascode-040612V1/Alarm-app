@@ -174,7 +174,7 @@ class AlarmSetupActivity : AppCompatActivity() {
                     textTtsVolume.text = "$progress%"
                     Log.d("AlarmSetupActivity", "🔊 TTS volume changed to: $progress%")
                     
-                    // Play a brief TTS sample to preview the volume level
+                    // Play a brief TTS sample to preview the volume level using actual note content
                     if (ttsInitialized) {
                         tts?.setSpeechRate(1.0f)
                         tts?.setPitch(1.0f)
@@ -183,7 +183,15 @@ class AlarmSetupActivity : AppCompatActivity() {
                         val params = Bundle()
                         params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume)
                         
-                        tts?.speak("Hello, this is a test of the TTS volume.", TextToSpeech.QUEUE_FLUSH, params, "test_tts")
+                        // Use actual note content if available, otherwise use generic message
+                        val noteText = editTextNote.text?.toString()?.trim()
+                        val textToSpeak = if (!noteText.isNullOrEmpty()) {
+                            noteText
+                        } else {
+                            "Hello, this is a test of the TTS volume."
+                        }
+                        
+                        tts?.speak(textToSpeak, TextToSpeech.QUEUE_FLUSH, params, "test_tts")
                     }
                 }
             }
@@ -552,6 +560,16 @@ class AlarmSetupActivity : AppCompatActivity() {
             updateTtsAvailability()
         }
         
+        // CRITICAL FIX: Add text change listener for real-time updates
+        editTextNote.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                // Update TTS availability in real-time as user types
+                updateTtsAvailability()
+            }
+        })
+        
         // Update TTS availability initially
         updateTtsAvailability()
     }
@@ -641,68 +659,153 @@ class AlarmSetupActivity : AppCompatActivity() {
     }
 
     private fun setupVolumeControls() {
-        Log.d("AlarmSetupActivity", "🔊 Setting up volume controls...")
+        Log.d("AlarmSetupActivity", "🔊 Setting up enhanced contextual volume controls...")
         
-        // Setup Ringtone Volume Control
+        // Setup Ringtone Volume Control with safety enforcement
         seekBarRingtoneVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    ringtoneVolume = progress / 100.0f
+                    val volume = progress / 100.0f
+                    
+                    // Enforce minimum volume for safety
+                    if (volume < 0.3f) {
+                        seekBar?.progress = 30
+                        Toast.makeText(this@AlarmSetupActivity, "🛡️ Volume cannot be below 30% for safety", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+                    
+                    ringtoneVolume = volume
                     textRingtoneVolume.text = "$progress%"
-                    Log.d("AlarmSetupActivity", "🔔 Ringtone volume changed to: $progress%")
+                    
+                    // Show warning for low volumes
+                    if (volume < 0.5f) {
+                        Toast.makeText(this@AlarmSetupActivity, "⚠️ Low volume ($progress%). Alarm may be quiet!", Toast.LENGTH_SHORT).show()
+                    }
+                    
+                    Log.d("AlarmSetupActivity", "🔔 Ringtone volume: $progress%")
+                    playRingtonePreview()
                 }
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                stopAllPreviews()
+            }
         })
         
-        // Setup Voice Volume Control
+        // Setup Voice Volume Control with contextual visibility
         seekBarVoiceVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    voiceVolume = progress / 100.0f
-                    textVoiceVolume.text = "$progress%"
-                    Log.d("AlarmSetupActivity", "🎙️ Voice volume changed to: $progress%")
+                    val volume = progress / 100.0f
                     
-                    // CRITICAL FIX: Play voice preview at new volume level
+                    // Enforce minimum volume for safety
+                    if (volume < 0.3f) {
+                        seekBar?.progress = 30
+                        Toast.makeText(this@AlarmSetupActivity, "🛡️ Voice volume cannot be below 30% for safety", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+                    
+                    voiceVolume = volume
+                    textVoiceVolume.text = "$progress%"
+                    
+                    Log.d("AlarmSetupActivity", "🎙️ Voice volume: $progress%")
                     if (currentVoiceRecordingPath != null) {
                         playVoicePreview()
                     }
                 }
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {
-                // Stop any existing preview when user starts adjusting
                 stopAllPreviews()
             }
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                // Stop preview when user finishes adjusting
-                handler.postDelayed({ stopAllPreviews() }, 2000) // Stop after 2 seconds
+                handler.postDelayed({ stopAllPreviews() }, 2000)
             }
         })
         
-        // Set initial values
-        seekBarRingtoneVolume.progress = (ringtoneVolume * 100).toInt()
-        seekBarVoiceVolume.progress = (voiceVolume * 100).toInt()
-        textRingtoneVolume.text = "${(ringtoneVolume * 100).toInt()}%"
-        textVoiceVolume.text = "${(voiceVolume * 100).toInt()}%"
+        // Setup TTS Volume Control with contextual visibility  
+        seekBarTtsVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    val volume = progress / 100.0f
+                    
+                    // Enforce minimum volume for safety
+                    if (volume < 0.3f) {
+                        seekBar?.progress = 30
+                        Toast.makeText(this@AlarmSetupActivity, "🛡️ TTS volume cannot be below 30% for safety", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+                    
+                    ttsVolume = volume
+                    textTtsVolume.text = "$progress%"
+                    
+                    Log.d("AlarmSetupActivity", "🔊 TTS volume: $progress%")
+                    
+                    // Play TTS preview at new volume using actual note content
+                    if (ttsInitialized) {
+                        tts?.setSpeechRate(1.0f)
+                        tts?.setPitch(1.0f)
+                        
+                        val params = Bundle()
+                        params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume)
+                        
+                        // Use actual note content if available, otherwise use generic message
+                        val noteText = editTextNote.text?.toString()?.trim()
+                        val textToSpeak = if (!noteText.isNullOrEmpty()) {
+                            noteText
+                        } else {
+                            "This is the TTS volume level"
+                        }
+                        
+                        tts?.speak(textToSpeak, TextToSpeech.QUEUE_FLUSH, params, "volume_test")
+                    }
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
         
-        // Enable voice volume control only when voice recording exists
+        // Set initial safe values
+        seekBarRingtoneVolume.progress = maxOf((ringtoneVolume * 100).toInt(), 30)
+        seekBarVoiceVolume.progress = maxOf((voiceVolume * 100).toInt(), 30)
+        seekBarTtsVolume.progress = maxOf((ttsVolume * 100).toInt(), 30)
+        textRingtoneVolume.text = "${seekBarRingtoneVolume.progress}%"
+        textVoiceVolume.text = "${seekBarVoiceVolume.progress}%"
+        textTtsVolume.text = "${seekBarTtsVolume.progress}%"
+        
+        // Update contextual visibility
         updateVolumeControlsState()
         
-        Log.d("AlarmSetupActivity", "✅ Volume controls setup completed!")
+        Log.d("AlarmSetupActivity", "✅ Enhanced contextual volume controls setup completed!")
     }
     
     private fun updateVolumeControlsState() {
-        // Enable voice volume control only when voice recording exists
+        // Show/hide voice volume control based on voice overlay state
+        val voiceVolumeLayout = findViewById<LinearLayout>(R.id.layoutVoiceVolume)
         val hasVoiceRecording = currentVoiceRecordingPath != null
-        seekBarVoiceVolume.isEnabled = hasVoiceRecording && isVoiceOverlayEnabled
-        textVoiceVolume.alpha = if (hasVoiceRecording && isVoiceOverlayEnabled) 1.0f else 0.5f
         
-        // Enable TTS volume control only when TTS is enabled
-        seekBarTtsVolume.isEnabled = isTtsOverlayEnabled
-        textTtsVolume.alpha = if (isTtsOverlayEnabled) 1.0f else 0.5f
+        if (hasVoiceRecording && isVoiceOverlayEnabled) {
+            voiceVolumeLayout.visibility = View.VISIBLE
+            seekBarVoiceVolume.isEnabled = true
+            textVoiceVolume.alpha = 1.0f
+        } else {
+            voiceVolumeLayout.visibility = View.GONE
+            seekBarVoiceVolume.isEnabled = false
+            textVoiceVolume.alpha = 0.5f
+        }
         
-        Log.d("AlarmSetupActivity", "Volume controls state updated - Voice enabled: $hasVoiceRecording, TTS enabled: $isTtsOverlayEnabled")
+        // Show/hide TTS volume control based on TTS overlay state
+        val ttsVolumeLayout = findViewById<LinearLayout>(R.id.layoutTtsVolume)
+        if (isTtsOverlayEnabled) {
+            ttsVolumeLayout.visibility = View.VISIBLE
+            seekBarTtsVolume.isEnabled = true
+            textTtsVolume.alpha = 1.0f
+        } else {
+            ttsVolumeLayout.visibility = View.GONE
+            seekBarTtsVolume.isEnabled = false
+            textTtsVolume.alpha = 0.5f
+        }
+        
+        Log.d("AlarmSetupActivity", "Volume controls updated - Voice visible: ${voiceVolumeLayout.visibility == View.VISIBLE}, TTS visible: ${ttsVolumeLayout.visibility == View.VISIBLE}")
     }
 
     private fun populateExistingAlarm(alarm: AlarmItem) {

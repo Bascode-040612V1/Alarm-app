@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.format.DateFormat
 import android.widget.Toast
+import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -41,18 +42,34 @@ class MainActivity : AppCompatActivity() {
     ) { result ->
         when (result.resultCode) {
             AlarmSetupActivity.RESULT_ALARM_SAVED -> {
-                result.data?.getParcelableExtra<AlarmItem>(AlarmSetupActivity.EXTRA_ALARM_ITEM)?.let { alarmItem ->
-                    val existingAlarm = alarmList.find { it.id == alarmItem.id }
-                    if (existingAlarm != null) {
-                        updateAlarm(existingAlarm, alarmItem)
+                result.data?.let { data ->
+                    val alarmItem = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        data.getParcelableExtra(AlarmSetupActivity.EXTRA_ALARM_ITEM, AlarmItem::class.java)
                     } else {
-                        createAlarm(alarmItem)
+                        @Suppress("DEPRECATION")
+                        data.getParcelableExtra<AlarmItem>(AlarmSetupActivity.EXTRA_ALARM_ITEM)
+                    }
+                    alarmItem?.let { alarm ->
+                        val existingAlarm = alarmList.find { it.id == alarm.id }
+                        if (existingAlarm != null) {
+                            updateAlarm(existingAlarm, alarm)
+                        } else {
+                            createAlarm(alarm)
+                        }
                     }
                 }
             }
             AlarmSetupActivity.RESULT_ALARM_DELETED -> {
-                result.data?.getParcelableExtra<AlarmItem>(AlarmSetupActivity.EXTRA_ALARM_ITEM)?.let { alarmItem ->
-                    deleteAlarm(alarmItem)
+                result.data?.let { data ->
+                    val alarmItem = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        data.getParcelableExtra(AlarmSetupActivity.EXTRA_ALARM_ITEM, AlarmItem::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        data.getParcelableExtra<AlarmItem>(AlarmSetupActivity.EXTRA_ALARM_ITEM)
+                    }
+                    alarmItem?.let { alarm ->
+                        deleteAlarm(alarm)
+                    }
                 }
             }
         }
@@ -242,13 +259,14 @@ class MainActivity : AppCompatActivity() {
         } catch (e: SecurityException) {
             Toast.makeText(this, "Please allow exact alarm permission in settings", Toast.LENGTH_LONG).show()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                startActivity(intent)
+                val settingsIntent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                startActivity(settingsIntent)
             }
         }
     }
     
     private fun scheduleRepeatingAlarm(alarmManager: AlarmManager, alarmItem: AlarmItem, dayOfWeek: Int) {
+        val currentTime = Calendar.getInstance()
         val calendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, alarmItem.calendar.get(Calendar.HOUR_OF_DAY))
             set(Calendar.MINUTE, alarmItem.calendar.get(Calendar.MINUTE))
@@ -256,8 +274,14 @@ class MainActivity : AppCompatActivity() {
             set(Calendar.MILLISECOND, 0)
             set(Calendar.DAY_OF_WEEK, dayOfWeek)
             
-            // If this day/time has already passed this week, schedule for next week
-            if (before(Calendar.getInstance())) {
+            // CRITICAL FIX: Proper logic for determining next occurrence
+            // If this day/time combination has already passed this week, schedule for next week
+            if (before(currentTime) || 
+                (get(Calendar.DAY_OF_WEEK) == currentTime.get(Calendar.DAY_OF_WEEK) && 
+                 get(Calendar.HOUR_OF_DAY) < currentTime.get(Calendar.HOUR_OF_DAY)) ||
+                (get(Calendar.DAY_OF_WEEK) == currentTime.get(Calendar.DAY_OF_WEEK) && 
+                 get(Calendar.HOUR_OF_DAY) == currentTime.get(Calendar.HOUR_OF_DAY) &&
+                 get(Calendar.MINUTE) <= currentTime.get(Calendar.MINUTE))) {
                 add(Calendar.WEEK_OF_YEAR, 1)
             }
         }
@@ -278,7 +302,7 @@ class MainActivity : AppCompatActivity() {
             putExtra("RINGTONE_VOLUME", alarmItem.ringtoneVolume)
             putExtra("VOICE_VOLUME", alarmItem.voiceVolume)
             putExtra("TTS_VOLUME", alarmItem.ttsVolume)
-            putExtra("HAS_VIBRATION", alarmItem.hasVibration) // CRITICAL FIX: Add vibration setting
+            putExtra("HAS_VIBRATION", alarmItem.hasVibration)
         }
         
         val pendingIntent = PendingIntent.getBroadcast(
@@ -289,14 +313,37 @@ class MainActivity : AppCompatActivity() {
         )
         
         try {
-            alarmManager.setRepeating(
-                AlarmManager.RTC_WAKEUP,
-                calendar.timeInMillis,
-                AlarmManager.INTERVAL_DAY * 7, // Weekly repeat
-                pendingIntent
-            )
+            // CRITICAL FIX: Use reliable exact scheduling for repeating alarms
+            // Note: We schedule individual occurrences and let AlarmReceiver handle the next one
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    pendingIntent
+                )
+            }
+            Log.d("MainActivity", "Scheduled repeating alarm for ${getDayName(dayOfWeek)} at ${alarmItem.time} (${calendar.time})")
         } catch (e: SecurityException) {
             Toast.makeText(this, "Please allow exact alarm permission in settings", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    private fun getDayName(dayOfWeek: Int): String {
+        return when(dayOfWeek) {
+            Calendar.SUNDAY -> "Sunday"
+            Calendar.MONDAY -> "Monday"
+            Calendar.TUESDAY -> "Tuesday"
+            Calendar.WEDNESDAY -> "Wednesday"
+            Calendar.THURSDAY -> "Thursday"
+            Calendar.FRIDAY -> "Friday"
+            Calendar.SATURDAY -> "Saturday"
+            else -> "Unknown"
         }
     }
     

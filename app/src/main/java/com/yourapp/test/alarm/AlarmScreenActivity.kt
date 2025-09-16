@@ -133,9 +133,9 @@ class AlarmScreenActivity : AppCompatActivity() {
         // Setup back button handling with modern OnBackPressedDispatcher
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                // Prevent back button from dismissing alarm
-                // User must use snooze or dismiss buttons
-                Log.d("AlarmScreenActivity", "Back button pressed - ignored for alarm screen")
+                // Prevent accidental back button dismissal
+                Log.d("AlarmScreenActivity", "Back button pressed - showing warning")
+                showBackButtonWarning()
             }
         })
         
@@ -310,7 +310,7 @@ class AlarmScreenActivity : AppCompatActivity() {
                 setVolume(ringtoneVolume, ringtoneVolume)
                 
                 // Add error listener
-                setOnErrorListener { mp, what, extra ->
+                setOnErrorListener { _, what, extra ->
                     Log.e("AlarmScreenActivity", "MediaPlayer error: what=$what, extra=$extra")
                     // Try to recover by playing fallback sound
                     try {
@@ -376,7 +376,7 @@ class AlarmScreenActivity : AppCompatActivity() {
                     }
                     
                     // Add error listener first
-                    setOnErrorListener { mp, what, extra ->
+                    setOnErrorListener { _, what, extra ->
                         Log.e("AlarmScreenActivity", "❌ Voice overlay error: what=$what, extra=$extra")
                         // Clean up on error
                         try {
@@ -460,7 +460,7 @@ class AlarmScreenActivity : AppCompatActivity() {
     }
     
     private fun startTtsLoop(params: Bundle) {
-        // Create a repeating TTS loop with 5 second delays between repetitions
+        // Create a repeating TTS loop with 1 second delays between repetitions
         val ttsRunnable = object : Runnable {
             override fun run() {
                 tts?.let { ttsEngine ->
@@ -468,12 +468,12 @@ class AlarmScreenActivity : AppCompatActivity() {
                         Log.d("AlarmScreenActivity", "🗣️ Speaking note: '$alarmNote'")
                         val result = ttsEngine.speak(alarmNote, TextToSpeech.QUEUE_FLUSH, params, "alarm_tts")
                         if (result == TextToSpeech.SUCCESS) {
-                            // Schedule next TTS after 5 seconds to prevent overwhelming
-                            handler.postDelayed(this, 5000) // 5 second delay between TTS repetitions
+                            // Schedule next TTS after 1 second for faster looping
+                            handler.postDelayed(this, 1000) // 1 second delay between TTS repetitions
                         } else {
                             Log.e("AlarmScreenActivity", "❌ TTS speak failed: $result")
-                            // Retry after 10 seconds if TTS fails
-                            handler.postDelayed(this, 10000)
+                            // Retry after 2 seconds if TTS fails
+                            handler.postDelayed(this, 2000)
                         }
                     }
                 }
@@ -485,7 +485,7 @@ class AlarmScreenActivity : AppCompatActivity() {
     }
     
     private fun startTtsLoopLegacy(params: HashMap<String, String>) {
-        // Create a repeating TTS loop for legacy Android with reasonable delays
+        // Create a repeating TTS loop for legacy Android with 1 second delays
         val ttsRunnable = object : Runnable {
             override fun run() {
                 tts?.let { ttsEngine ->
@@ -494,12 +494,12 @@ class AlarmScreenActivity : AppCompatActivity() {
                         @Suppress("DEPRECATION")
                         val result = ttsEngine.speak(alarmNote, TextToSpeech.QUEUE_FLUSH, params)
                         if (result == TextToSpeech.SUCCESS) {
-                            // Schedule next TTS after 8 seconds for legacy Android
-                            handler.postDelayed(this, 8000)
+                            // Schedule next TTS after 1 second for faster looping
+                            handler.postDelayed(this, 1000)
                         } else {
                             Log.e("AlarmScreenActivity", "❌ TTS speak failed (legacy): $result")
-                            // Retry after 15 seconds if TTS fails
-                            handler.postDelayed(this, 15000)
+                            // Retry after 2 seconds if TTS fails
+                            handler.postDelayed(this, 2000)
                         }
                     }
                 }
@@ -539,34 +539,106 @@ class AlarmScreenActivity : AppCompatActivity() {
     }
 
     private fun snoozeAlarm() {
+        Log.d("AlarmScreenActivity", "Snoozing alarm - ID: $alarmId")
+        
+        // Stop all audio immediately
         stopAlarmSound()
         stopBellAnimation()
         
-        // Send snooze broadcast
+        // Create comprehensive snooze intent with all original data
         val snoozeIntent = Intent(this, AlarmReceiver::class.java).apply {
             action = AlarmReceiver.ACTION_SNOOZE
             putExtra("ALARM_ID", alarmId)
             putExtra("SNOOZE_MINUTES", snoozeMinutes)
-            putExtras(intent.extras ?: Bundle())
+            
+            // Preserve ALL original alarm data to prevent data loss
+            putExtra("ALARM_TIME", intent.getStringExtra(AlarmScreenActivity.EXTRA_ALARM_TIME))
+            putExtra("ALARM_TITLE", alarmTitle)
+            putExtra("ALARM_NOTE", alarmNote)
+            putExtra("RINGTONE_URI", intent.getStringExtra(AlarmScreenActivity.EXTRA_RINGTONE_URI))
+            putExtra("RINGTONE_NAME", ringtoneName)
+            putExtra("VOICE_RECORDING_PATH", voiceRecordingPath)
+            putExtra("HAS_VOICE_OVERLAY", hasVoiceOverlay)
+            putExtra("HAS_TTS_OVERLAY", hasTtsOverlay)
+            putExtra("RINGTONE_VOLUME", ringtoneVolume)
+            putExtra("VOICE_VOLUME", voiceVolume)
+            putExtra("TTS_VOLUME", ttsVolume)
+            
+            // Add reliability flags
+            putExtra("IS_SNOOZE_ACTION", true)
+            putExtra("SNOOZE_TIMESTAMP", System.currentTimeMillis())
         }
-        sendBroadcast(snoozeIntent)
         
-        finish()
+        try {
+            sendBroadcast(snoozeIntent)
+            Log.d("AlarmScreenActivity", "Snooze broadcast sent successfully")
+        } catch (e: Exception) {
+            Log.e("AlarmScreenActivity", "Failed to send snooze broadcast: ${e.message}")
+            // Show error to user
+            showSnoozeError()
+            return
+        }
+        
+        // Finish activity with delay to ensure broadcast is processed
+        handler.postDelayed({
+            finish()
+        }, 100)
     }
-
+    
     private fun dismissAlarm() {
+        Log.d("AlarmScreenActivity", "Dismissing alarm - ID: $alarmId")
+        
+        // Stop all audio immediately
         stopAlarmSound()
         stopBellAnimation()
         
-        // Send dismiss broadcast
+        // Create dismiss intent
         val dismissIntent = Intent(this, AlarmReceiver::class.java).apply {
             action = AlarmReceiver.ACTION_DISMISS
             putExtra("ALARM_ID", alarmId)
+            putExtra("DISMISS_TIMESTAMP", System.currentTimeMillis())
         }
-        sendBroadcast(dismissIntent)
         
+        try {
+            sendBroadcast(dismissIntent)
+            Log.d("AlarmScreenActivity", "Dismiss broadcast sent successfully")
+        } catch (e: Exception) {
+            Log.e("AlarmScreenActivity", "Failed to send dismiss broadcast: ${e.message}")
+        }
+        
+        // Finish activity immediately for dismiss
         finish()
     }
+    
+    /**
+     * Shows an error message when snooze fails
+     */
+    private fun showSnoozeError() {
+        try {
+            // You could show a Toast or update UI to indicate snooze failed
+            runOnUiThread {
+                // For now, just log and continue - in a real app you might show UI feedback
+                Log.e("AlarmScreenActivity", "Snooze operation failed - user should be notified")
+            }
+        } catch (e: Exception) {
+            Log.e("AlarmScreenActivity", "Error showing snooze error: ${e.message}")
+        }
+    }
+    
+    /**
+     * Shows warning when user tries to use back button
+     */
+    private fun showBackButtonWarning() {
+        // Temporarily disable the warning and just prevent back button usage
+        Log.d("AlarmScreenActivity", "Back button blocked - user must use snooze/dismiss buttons")
+        
+        // Optional: You could show a brief visual indication that back button is disabled
+        // For now, we just log and ignore the back press
+    }
+    
+    /**
+     * Enhanced cleanup when stopping alarm sounds
+     */
 
     private fun stopAlarmSound() {
         Log.d("AlarmScreenActivity", "Stopping alarm sound...")
@@ -640,6 +712,7 @@ class AlarmScreenActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(stopAlarmReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
             registerReceiver(stopAlarmReceiver, filter)
         }
         

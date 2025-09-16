@@ -109,15 +109,13 @@ class AlarmReceiver : BroadcastReceiver() {
         val alarmNote = intent.getStringExtra("ALARM_NOTE") ?: ""
         val ringtoneUriString = intent.getStringExtra("RINGTONE_URI")
         val ringtoneName = intent.getStringExtra("RINGTONE_NAME") ?: "Default"
-        val isRepeating = intent.getBooleanExtra("IS_REPEATING", false)
-        val repeatDay = intent.getIntExtra("REPEAT_DAY", -1)
         val voiceRecordingPath = intent.getStringExtra("VOICE_RECORDING_PATH")
         val hasVoiceOverlay = intent.getBooleanExtra("HAS_VOICE_OVERLAY", false)
         val hasTtsOverlay = intent.getBooleanExtra("HAS_TTS_OVERLAY", false)
         val ringtoneVolume = intent.getFloatExtra("RINGTONE_VOLUME", 0.8f)
         val voiceVolume = intent.getFloatExtra("VOICE_VOLUME", 1.0f)
         val ttsVolume = intent.getFloatExtra("TTS_VOLUME", 1.0f)
-        val hasVibration = intent.getBooleanExtra("HAS_VIBRATION", true) // CRITICAL FIX: Get user vibration setting
+        val hasVibration = intent.getBooleanExtra("HAS_VIBRATION", true)
         
         Log.d("AlarmReceiver", "Snoozing alarm - Preserving ringtone: $ringtoneName, URI: $ringtoneUriString, Volumes: R=$ringtoneVolume V=$voiceVolume TTS=$ttsVolume")
         
@@ -138,6 +136,7 @@ class AlarmReceiver : BroadcastReceiver() {
         
         // Broadcast to stop any running alarm screen
         val stopBroadcast = Intent("com.yourapp.test.alarm.STOP_ALARM").apply {
+            setPackage(context.packageName) // Make intent explicit
             putExtra("ALARM_ID", alarmId)
         }
         context.sendBroadcast(stopBroadcast)
@@ -147,17 +146,21 @@ class AlarmReceiver : BroadcastReceiver() {
             add(Calendar.MINUTE, snoozeMinutes)
         }
         
+        // Use a unique but predictable ID for snooze
+        val snoozeAlarmId = generateSnoozeId(alarmId)
+        
         val snoozeIntent = Intent(context, AlarmReceiver::class.java).apply {
             // Preserve ALL original alarm data for the snoozed alarm
-            putExtra("ALARM_ID", alarmId + 10000) // Different ID for snooze
+            putExtra("ALARM_ID", snoozeAlarmId) // Use unique snooze ID
+            putExtra("ORIGINAL_ALARM_ID", alarmId) // Track original for cleanup
             putExtra("ALARM_TIME", alarmTime)
             putExtra("ALARM_TITLE", alarmTitle)
             putExtra("ALARM_NOTE", alarmNote)
             putExtra("RINGTONE_URI", ringtoneUriString) // Preserve original ringtone URI
             putExtra("RINGTONE_NAME", ringtoneName) // Preserve original ringtone name
             putExtra("SNOOZE_MINUTES", snoozeMinutes)
-            putExtra("IS_REPEATING", isRepeating)
-            putExtra("REPEAT_DAY", repeatDay)
+            putExtra("IS_REPEATING", false) // Snooze alarms are never repeating
+            putExtra("IS_SNOOZE_ALARM", true) // Mark as snooze alarm
             putExtra("VOICE_RECORDING_PATH", voiceRecordingPath)
             putExtra("HAS_VOICE_OVERLAY", hasVoiceOverlay)
             putExtra("HAS_TTS_OVERLAY", hasTtsOverlay)
@@ -168,11 +171,13 @@ class AlarmReceiver : BroadcastReceiver() {
         }
         
         val snoozePendingIntent = PendingIntent.getBroadcast(
-            context, alarmId + 10000, snoozeIntent,
+            context, snoozeAlarmId, snoozeIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        
+        var snoozeScheduled = false
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(
@@ -187,32 +192,140 @@ class AlarmReceiver : BroadcastReceiver() {
                     snoozePendingIntent
                 )
             }
-            Log.d("AlarmReceiver", "Snooze scheduled for ${snoozeMinutes} minutes with ringtone: $ringtoneName")
+            snoozeScheduled = true
+            Log.d("AlarmReceiver", "Snooze scheduled for ${snoozeMinutes} minutes with ringtone: $ringtoneName, ID: $snoozeAlarmId")
         } catch (e: SecurityException) {
+            Log.e("AlarmReceiver", "Failed to schedule snooze due to permission: ${e.message}")
+            // Show user notification about permission issue
+            showSnoozeFailureNotification(context, alarmId, alarmTitle, snoozeMinutes)
+        } catch (e: Exception) {
             Log.e("AlarmReceiver", "Failed to schedule snooze: ${e.message}")
+            showSnoozeFailureNotification(context, alarmId, alarmTitle, snoozeMinutes)
+        }
+        
+        // If scheduling failed, show a fallback notification
+        if (!snoozeScheduled) {
+            Log.w("AlarmReceiver", "Snooze scheduling failed - alarm will not repeat")
         }
     }
 
     private fun handleDismiss(context: Context, intent: Intent) {
         val alarmId = intent.getIntExtra("ALARM_ID", 0)
         
+        Log.d("AlarmReceiver", "Dismissing alarm with ID: $alarmId")
+        
         // Dismiss notification
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(alarmId)
+        
+        // Also cancel any potential snooze notifications
+        notificationManager.cancel(alarmId + 10000)
+        
+        // Stop the AlarmScreenActivity if it's running
+        val stopAlarmIntent = Intent(context, AlarmScreenActivity::class.java).apply {
+            action = "STOP_ALARM"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        try {
+            context.startActivity(stopAlarmIntent)
+        } catch (e: Exception) {
+            Log.e("AlarmReceiver", "Could not stop AlarmScreenActivity via intent: ${e.message}")
+        }
+        
+        // Broadcast to stop any running alarm screen
+        val stopBroadcast = Intent("com.yourapp.test.alarm.STOP_ALARM").apply {
+            setPackage(context.packageName) // Make intent explicit
+            putExtra("ALARM_ID", alarmId)
+        }
+        context.sendBroadcast(stopBroadcast)
+        
+        // Cancel any pending snooze alarms for this alarm ID
+        cancelPendingSnoozeAlarms(context, alarmId)
+        
+        Log.d("AlarmReceiver", "Alarm $alarmId dismissed successfully")
+    }
+    
+    private fun cancelPendingSnoozeAlarms(context: Context, originalAlarmId: Int) {
+        try {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            
+            // Cancel the standard snooze alarm
+            val snoozeIntent = Intent(context, AlarmReceiver::class.java)
+            val snoozePendingIntent = PendingIntent.getBroadcast(
+                context, 
+                originalAlarmId + 10000, 
+                snoozeIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            alarmManager.cancel(snoozePendingIntent)
+            snoozePendingIntent.cancel()
+            
+            Log.d("AlarmReceiver", "Cancelled pending snooze alarms for alarm ID: $originalAlarmId")
+        } catch (e: Exception) {
+            Log.e("AlarmReceiver", "Error cancelling snooze alarms: ${e.message}")
+        }
+    }
+    
+    /**
+     * Generates a unique but predictable snooze ID to avoid conflicts
+     */
+    private fun generateSnoozeId(originalAlarmId: Int): Int {
+        // Use current timestamp + original ID to ensure uniqueness
+        val timestamp = (System.currentTimeMillis() / 1000).toInt()
+        return timestamp + originalAlarmId
+    }
+    
+    /**
+     * Shows a notification when snooze scheduling fails
+     */
+    private fun showSnoozeFailureNotification(context: Context, alarmId: Int, title: String, snoozeMinutes: Int) {
+        try {
+            createNotificationChannel(context)
+            
+            val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_alarm)
+                .setContentTitle("Snooze Failed")
+                .setContentText("Unable to snooze alarm '$title' for $snoozeMinutes minutes. Please check alarm permissions.")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setSound(null)
+            
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.notify(alarmId + 5000, notificationBuilder.build())
+            
+            Log.d("AlarmReceiver", "Snooze failure notification shown for alarm: $title")
+        } catch (e: Exception) {
+            Log.e("AlarmReceiver", "Failed to show snooze failure notification: ${e.message}")
+        }
     }
 
     private fun scheduleNextRepeatingAlarm(context: Context, intent: Intent, dayOfWeek: Int) {
-        val nextWeek = Calendar.getInstance().apply {
-            add(Calendar.WEEK_OF_YEAR, 1)
-            set(Calendar.DAY_OF_WEEK, dayOfWeek)
-            set(Calendar.HOUR_OF_DAY, intent.getStringExtra("ALARM_TIME")?.split(":")?.get(0)?.toInt() ?: 0)
-            set(Calendar.MINUTE, intent.getStringExtra("ALARM_TIME")?.split(":")?.get(1)?.toInt() ?: 0)
+        // CRITICAL FIX: Proper logic for scheduling next weekly occurrence
+        val alarmTimeString = intent.getStringExtra("ALARM_TIME") ?: return
+        val timeParts = alarmTimeString.split(":")
+        if (timeParts.size != 2) return
+        
+        val hour = timeParts[0].toIntOrNull() ?: return
+        val minute = timeParts[1].toIntOrNull() ?: return
+        
+        // Calculate next occurrence of this day/time
+        val nextAlarmTime = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
+            set(Calendar.DAY_OF_WEEK, dayOfWeek)
+            
+            // Always schedule for next week since this alarm just triggered
+            add(Calendar.WEEK_OF_YEAR, 1)
         }
         
+        // Create new intent with all original data preserved
         val nextIntent = Intent(context, AlarmReceiver::class.java).apply {
+            // Copy all extras from original intent
             putExtras(intent.extras ?: Bundle())
+            // Ensure the ALARM_ID remains the same for repeating alarms
         }
         
         val pendingIntent = PendingIntent.getBroadcast(
@@ -223,12 +336,42 @@ class AlarmReceiver : BroadcastReceiver() {
         )
         
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            nextWeek.timeInMillis,
-            AlarmManager.INTERVAL_DAY * 7,
-            pendingIntent
-        )
+        
+        try {
+            // CRITICAL FIX: Use modern reliable scheduling instead of deprecated setRepeating
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    nextAlarmTime.timeInMillis,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    nextAlarmTime.timeInMillis,
+                    pendingIntent
+                )
+            }
+            
+            Log.d("AlarmReceiver", "Next repeating alarm scheduled for ${getDayName(dayOfWeek)} at $alarmTimeString (${nextAlarmTime.time})")
+        } catch (e: SecurityException) {
+            Log.e("AlarmReceiver", "Failed to schedule next repeating alarm due to permission: ${e.message}")
+        } catch (e: Exception) {
+            Log.e("AlarmReceiver", "Failed to schedule next repeating alarm: ${e.message}")
+        }
+    }
+    
+    private fun getDayName(dayOfWeek: Int): String {
+        return when(dayOfWeek) {
+            Calendar.SUNDAY -> "Sunday"
+            Calendar.MONDAY -> "Monday"
+            Calendar.TUESDAY -> "Tuesday"
+            Calendar.WEDNESDAY -> "Wednesday"
+            Calendar.THURSDAY -> "Thursday"
+            Calendar.FRIDAY -> "Friday"
+            Calendar.SATURDAY -> "Saturday"
+            else -> "Unknown"
+        }
     }
 
     private fun createNotificationChannel(context: Context) {
@@ -256,7 +399,7 @@ class AlarmReceiver : BroadcastReceiver() {
         note: String, 
         ringtoneUri: Uri?, 
         snoozeMinutes: Int,
-        intent: Intent? = null,
+        originalIntent: Intent? = null,
         hasVibration: Boolean = true
     ) {
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -278,7 +421,7 @@ class AlarmReceiver : BroadcastReceiver() {
             putExtra("RINGTONE_URI", ringtoneUri?.toString())
             
             // Preserve all additional data from original intent if available
-            intent?.let { originalIntent ->
+            originalIntent?.let { originalIntent ->
                 putExtra("RINGTONE_NAME", originalIntent.getStringExtra("RINGTONE_NAME") ?: "Default")
                 putExtra("IS_REPEATING", originalIntent.getBooleanExtra("IS_REPEATING", false))
                 putExtra("REPEAT_DAY", originalIntent.getIntExtra("REPEAT_DAY", -1))

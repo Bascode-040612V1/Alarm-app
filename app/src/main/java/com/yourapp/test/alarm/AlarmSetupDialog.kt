@@ -92,12 +92,6 @@ class AlarmSetupDialog(
 
     private fun setupRingtoneSelector() {
         layoutRingtoneSelector.setOnClickListener {
-            val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
-                putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
-                putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Alarm Ringtone")
-                putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, selectedRingtoneUri)
-            }
-            
             // Note: In a real implementation, you'd need to handle this with an activity result
             // For now, we'll use a simple dialog to simulate ringtone selection
             showRingtoneSelectionDialog()

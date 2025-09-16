@@ -112,7 +112,7 @@
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="Optional note"
+                        android:hint="Note to be use in TTS"
                         app:hintTextColor="@color/secondary_text"
                         app:boxStrokeColor="@color/accent_red"
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
@@ -310,418 +310,547 @@
                         android:layout_marginBottom="12dp" />
 
                     <!-- Ringtone Selection -->
-                    <LinearLayout
-                        android:id="@+id/layoutRingtoneSelector"
+                    <com.google.android.material.card.MaterialCardView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:padding="12dp"
-                        android:background="?android:attr/selectableItemBackground"
-                        android:gravity="center_vertical"
-                        android:layout_marginBottom="12dp">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@drawable/ic_music_note"
-                            app:tint="@color/accent_red"
-                            android:layout_marginEnd="12dp" />
+                        android:layout_marginBottom="16dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="4dp"
+                        app:strokeColor="@color/accent_red"
+                        app:strokeWidth="1dp">
 
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
+                            android:orientation="vertical"
+                            android:padding="16dp">
 
-                            <TextView
-                                android:layout_width="wrap_content"
+                            <!-- Ringtone Selector -->
+                            <LinearLayout
+                                android:id="@+id/layoutRingtoneSelector"
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="Ringtone"
-                                android:textColor="@color/primary_text"
-                                android:textSize="16sp"
-                                android:textStyle="bold" />
+                                android:orientation="horizontal"
+                                android:padding="8dp"
+                                android:background="?android:attr/selectableItemBackground"
+                                android:gravity="center_vertical"
+                                android:layout_marginBottom="12dp">
 
-                            <TextView
-                                android:id="@+id/textSelectedRingtone"
-                                android:layout_width="wrap_content"
+                                <ImageView
+                                    android:layout_width="28dp"
+                                    android:layout_height="28dp"
+                                    android:src="@drawable/ic_music_note"
+                                    app:tint="@color/accent_red"
+                                    android:layout_marginEnd="12dp" />
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="🔔 Ringtone"
+                                        android:textColor="@color/primary_text"
+                                        android:textSize="16sp"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:id="@+id/textSelectedRingtone"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Default"
+                                        android:textColor="@color/secondary_text"
+                                        android:textSize="14sp" />
+
+                                </LinearLayout>
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:src="@drawable/ic_arrow_right"
+                                    app:tint="@color/secondary_text" />
+
+                            </LinearLayout>
+
+                            <!-- Ringtone Volume Control -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="Default"
-                                android:textColor="@color/secondary_text"
-                                android:textSize="14sp" />
+                                android:orientation="vertical"
+                                android:background="@drawable/card_gradient_background"
+                                android:padding="12dp"
+                                android:layout_marginTop="8dp">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="8dp">
+
+                                    <TextView
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="🔊 Volume"
+                                        android:textColor="@color/primary_text"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:id="@+id/textRingtoneVolume"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="80%"
+                                        android:textColor="@color/accent_red"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold"
+                                        android:minWidth="40dp"
+                                        android:gravity="center" />
+
+                                </LinearLayout>
+
+                                <SeekBar
+                                    android:id="@+id/seekBarRingtoneVolume"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:max="100"
+                                    android:progress="80"
+                                    android:progressTint="@color/accent_red"
+                                    android:thumbTint="@color/accent_red" />
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="🛡️ Minimum 30% for safety"
+                                    android:textColor="@color/secondary_text"
+                                    android:textSize="11sp"
+                                    android:layout_marginTop="4dp"
+                                    android:gravity="center" />
+
+                            </LinearLayout>
 
                         </LinearLayout>
 
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@drawable/ic_arrow_right"
-                            app:tint="@color/secondary_text" />
-
-                    </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
                     <!-- Voice Recording Section -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="4dp"
+                        app:strokeColor="@color/accent_red"
+                        app:strokeWidth="1dp">
 
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="8dp"
+                                android:text="🎤 Voice Overlay"
+                                android:textColor="@color/primary_text"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="16dp"
+                                android:text="Record your voice to play over the selected ringtone"
+                                android:textColor="@color/secondary_text"
+                                android:textSize="14sp" />
+
+                            <!-- Voice Recording Controls -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <Button
+                                    android:id="@+id/buttonRecordVoice"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:layout_marginEnd="8dp"
+                                    android:backgroundTint="@color/accent_red"
+                                    android:text="🎙️ Record"
+                                    android:textColor="@color/white"
+                                    android:textSize="12sp" />
+
+                                <Button
+                                    android:id="@+id/buttonPlayVoice"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:layout_marginEnd="8dp"
+                                    android:background="@android:color/transparent"
+                                    android:enabled="false"
+                                    android:text="▶️ Play"
+                                    android:textColor="@color/accent_red"
+                                    android:textSize="12sp" />
+
+                                <Button
+                                    android:id="@+id/buttonDeleteVoice"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="@android:color/transparent"
+                                    android:enabled="false"
+                                    android:minWidth="48dp"
+                                    android:text="🗑️"
+                                    android:textColor="@color/delete_color" />
+
+                            </LinearLayout>
+
+                            <!-- Voice History Toggle Button -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
+                                android:gravity="center">
+
+                                <ToggleButton
+                                    android:id="@+id/toggleVoiceHistory"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="?android:attr/selectableItemBackground"
+                                    android:minWidth="200dp"
+                                    android:textColor="@color/accent_red"
+                                    android:textOff="📂 Show Voice History"
+                                    android:textOn="📂 Hide Voice History"
+                                    android:textSize="14sp"
+                                    android:textStyle="bold" />
+
+                            </LinearLayout>
+
+                            <!-- Voice Recording Status and Toggle -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:layout_marginBottom="16dp">
+
+                                <TextView
+                                    android:id="@+id/textVoiceStatus"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginEnd="16dp"
+                                    android:layout_weight="1"
+                                    android:text="No voice recording"
+                                    android:textColor="@color/secondary_text"
+                                    android:textSize="14sp" />
+
+                                <Switch
+                                    android:id="@+id/switchVoiceOverlay"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:enabled="false"
+                                    android:text="Enable"
+                                    android:textColor="@color/primary_text"
+                                    android:textSize="14sp" />
+
+                            </LinearLayout>
+
+                            <!-- Voice Volume Control (Shown only when voice overlay is enabled) -->
+                            <LinearLayout
+                                android:id="@+id/layoutVoiceVolume"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:background="@drawable/card_gradient_background"
+                                android:padding="12dp"
+                                android:visibility="gone">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="8dp">
+
+                                    <TextView
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="🎤 Voice Volume"
+                                        android:textColor="@color/primary_text"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:id="@+id/textVoiceVolume"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="100%"
+                                        android:textColor="@color/accent_red"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold"
+                                        android:minWidth="40dp"
+                                        android:gravity="center" />
+
+                                </LinearLayout>
+
+                                <SeekBar
+                                    android:id="@+id/seekBarVoiceVolume"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:max="100"
+                                    android:progress="100"
+                                    android:enabled="false"
+                                    android:progressTint="@color/accent_red"
+                                    android:thumbTint="@color/accent_red" />
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="💡 Voice should be louder than ringtone for clarity"
+                                    android:textColor="@color/secondary_text"
+                                    android:textSize="11sp"
+                                    android:layout_marginTop="4dp"
+                                    android:gravity="center" />
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
 
                     <!-- TTS (Text-to-Speech) Section -->
-                    <LinearLayout
+                    <com.google.android.material.card.MaterialCardView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="24dp"
-                        android:background="?android:attr/selectableItemBackground"
-                        android:elevation="4dp"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        android:layout_marginBottom="16dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="4dp"
+                        app:strokeColor="@color/accent_red"
+                        app:strokeWidth="1dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="8dp"
-                            android:text="🎙️ Voice Overlay"
-                            android:textColor="@color/primary_text"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="16dp"
-                            android:text="Record your voice to play over the selected ringtone"
-                            android:textColor="@color/secondary_text"
-                            android:textSize="14sp" />
-
-                        <!-- Voice Recording Controls -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginBottom="12dp"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <Button
-                                android:id="@+id/buttonRecordVoice"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:layout_marginEnd="8dp"
-                                android:backgroundTint="@color/accent_red"
-                                android:text="🎙️ Record"
-                                android:textColor="@color/white"
-                                android:textSize="12sp" />
-
-                            <Button
-                                android:id="@+id/buttonPlayVoice"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:layout_marginEnd="8dp"
-                                android:background="@android:color/transparent"
-                                android:enabled="false"
-                                android:text="▶️ Play"
-                                android:textColor="@color/accent_red"
-                                android:textSize="12sp" />
-
-                            <Button
-                                android:id="@+id/buttonDeleteVoice"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:background="@android:color/transparent"
-                                android:enabled="false"
-                                android:minWidth="48dp"
-                                android:text="🗑️"
-                                android:textColor="@color/delete_color" />
-
-                        </LinearLayout>
-
-                        <!-- Voice History Toggle Button - SEPARATE ROW FOR VISIBILITY -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="12dp"
-                            android:gravity="center">
-
-                            <ToggleButton
-                                android:id="@+id/toggleVoiceHistory"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:background="?android:attr/selectableItemBackground"
-                                android:minWidth="200dp"
-                                android:textColor="@color/accent_red"
-                                android:textOff="📂 Show Voice History"
-                                android:textOn="📂 Hide Voice History"
-                                android:textSize="14sp"
-                                android:textStyle="bold" />
-
-                        </LinearLayout>
-
-                        <!-- Voice Recording Status and Toggle -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
+                            android:orientation="vertical"
+                            android:padding="16dp">
 
                             <TextView
-                                android:id="@+id/textVoiceStatus"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_marginEnd="16dp"
-                                android:layout_weight="1"
-                                android:text="No voice recording"
-                                android:textColor="@color/secondary_text"
-                                android:textSize="14sp" />
-
-                            <Switch
-                                android:id="@+id/switchVoiceOverlay"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:enabled="false"
-                                android:text="Enable"
+                                android:text="🔊 Text-to-Speech"
                                 android:textColor="@color/primary_text"
-                                android:textSize="14sp" />
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                android:layout_marginBottom="8dp" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Have your alarm note read aloud when the alarm triggers"
+                                android:textColor="@color/secondary_text"
+                                android:textSize="14sp"
+                                android:layout_marginBottom="16dp" />
+
+                            <!-- TTS Controls -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginBottom="16dp">
+
+                                <Button
+                                    android:id="@+id/buttonTestTts"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="🔊 Test TTS"
+                                    android:textColor="@color/white"
+                                    android:backgroundTint="@color/accent_red"
+                                    android:layout_marginEnd="16dp"
+                                    android:enabled="false" />
+
+                                <Switch
+                                    android:id="@+id/switchTtsOverlay"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Enable"
+                                    android:textColor="@color/primary_text"
+                                    android:textSize="14sp"
+                                    android:enabled="false" />
+
+                            </LinearLayout>
+
+                            <!-- TTS Volume Control (Shown only when TTS is enabled) -->
+                            <LinearLayout
+                                android:id="@+id/layoutTtsVolume"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:background="@drawable/card_gradient_background"
+                                android:padding="12dp"
+                                android:visibility="gone">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="8dp">
+
+                                    <TextView
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="🔊 TTS Volume"
+                                        android:textColor="@color/primary_text"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:id="@+id/textTtsVolume"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="100%"
+                                        android:textColor="@color/accent_red"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold"
+                                        android:minWidth="40dp"
+                                        android:gravity="center" />
+
+                                </LinearLayout>
+
+                                <SeekBar
+                                    android:id="@+id/seekBarTtsVolume"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:max="100"
+                                    android:progress="100"
+                                    android:enabled="false"
+                                    android:progressTint="@color/accent_red"
+                                    android:thumbTint="@color/accent_red" />
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="💬 TTS volume should match ringtone level"
+                                    android:textColor="@color/secondary_text"
+                                    android:textSize="11sp"
+                                    android:layout_marginTop="4dp"
+                                    android:gravity="center" />
+
+                            </LinearLayout>
 
                         </LinearLayout>
 
-                    </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
-                    <LinearLayout
+
+
+                    <!-- General Settings Section -->
+                    <com.google.android.material.card.MaterialCardView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:layout_marginTop="24dp"
-                        android:padding="16dp"
-                        android:background="?android:attr/selectableItemBackground"
-                        android:elevation="4dp">
+                        android:layout_marginBottom="16dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="4dp"
+                        app:strokeColor="@color/accent_red"
+                        app:strokeWidth="1dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="🔊 Text-to-Speech"
-                            android:textColor="@color/primary_text"
-                            android:textSize="18sp"
-                            android:textStyle="bold"
-                            android:layout_marginBottom="8dp" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Enter Note to be Speech."
-                            android:textColor="@color/secondary_text"
-                            android:textSize="14sp"
-                            android:layout_marginBottom="16dp" />
-
-                        <!-- TTS Controls -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="16dp">
+                            android:orientation="vertical"
+                            android:padding="16dp">
 
-                            <Button
-                                android:id="@+id/buttonTestTts"
+                            <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="🔊 Test TTS"
-                                android:textColor="@color/white"
-                                android:backgroundTint="@color/accent_red"
-                                android:layout_marginEnd="16dp"
-                                android:minWidth="120dp"
-                                android:enabled="false" />
-
-                            <Switch
-                                android:id="@+id/switchTtsOverlay"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Enable"
+                                android:text="⚙️ General Settings"
                                 android:textColor="@color/primary_text"
-                                android:textSize="14sp"
-                                android:enabled="false" />
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                android:layout_marginBottom="16dp" />
+
+                            <!-- Vibration Setting -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginBottom="16dp"
+                                android:background="@drawable/card_gradient_background"
+                                android:padding="12dp">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:src="@drawable/ic_alarm"
+                                    app:tint="@color/accent_red"
+                                    android:layout_marginEnd="12dp" />
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="📳 Vibration"
+                                    android:textColor="@color/primary_text"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold" />
+
+                                <Switch
+                                    android:id="@+id/switchVibration"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:checked="true" />
+
+                            </LinearLayout>
+
+                            <!-- Snooze Duration -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:background="@drawable/card_gradient_background"
+                                android:padding="12dp">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:src="@drawable/ic_snooze"
+                                    app:tint="@color/accent_red"
+                                    android:layout_marginEnd="12dp" />
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="⏰ Snooze Duration"
+                                    android:textColor="@color/primary_text"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold" />
+
+                                <Spinner
+                                    android:id="@+id/spinnerSnooze"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:minWidth="120dp" />
+
+                            </LinearLayout>
 
                         </LinearLayout>
 
-
-
-                    </LinearLayout>
-
-                    <!-- Volume Controls Section -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:layout_marginTop="24dp"
-                        android:padding="16dp"
-                        android:background="?android:attr/selectableItemBackground"
-                        android:elevation="4dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="🔊 Volume Settings"
-                            android:textColor="@color/primary_text"
-                            android:textSize="18sp"
-                            android:textStyle="bold"
-                            android:layout_marginBottom="16dp" />
-
-                        <!-- Ringtone Volume -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="16dp">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="🔔 Ringtone Volume"
-                                android:textColor="@color/primary_text"
-                                android:textSize="16sp" />
-
-                            <TextView
-                                android:id="@+id/textRingtoneVolume"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="80%"
-                                android:textColor="@color/secondary_text"
-                                android:textSize="14sp"
-                                android:minWidth="40dp"
-                                android:gravity="center" />
-
-                        </LinearLayout>
-
-                        <SeekBar
-                            android:id="@+id/seekBarRingtoneVolume"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:max="100"
-                            android:progress="80"
-                            android:layout_marginBottom="24dp" />
-
-                        <!-- Voice Overlay Volume -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="16dp">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="🎙️ Voice Volume"
-                                android:textColor="@color/primary_text"
-                                android:textSize="16sp" />
-
-                            <TextView
-                                android:id="@+id/textVoiceVolume"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="100%"
-                                android:textColor="@color/secondary_text"
-                                android:textSize="14sp"
-                                android:minWidth="40dp"
-                                android:gravity="center" />
-
-                        </LinearLayout>
-
-                        <SeekBar
-                            android:id="@+id/seekBarVoiceVolume"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:max="100"
-                            android:progress="100"
-                            android:enabled="false" />
-
-                        <!-- TTS Volume -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="16dp"
-                            android:layout_marginTop="24dp">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="🔊 TTS Volume"
-                                android:textColor="@color/primary_text"
-                                android:textSize="16sp" />
-
-                            <TextView
-                                android:id="@+id/textTtsVolume"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="100%"
-                                android:textColor="@color/secondary_text"
-                                android:textSize="14sp"
-                                android:minWidth="40dp"
-                                android:gravity="center" />
-
-                        </LinearLayout>
-
-                        <SeekBar
-                            android:id="@+id/seekBarTtsVolume"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:max="100"
-                            android:progress="100"
-                            android:enabled="false"
-                            android:layout_marginBottom="24dp" />
-
-                        <!-- Vibration Setting -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="24dp">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="📳 Vibration"
-                                android:textColor="@color/primary_text"
-                                android:textSize="16sp"
-                                android:textStyle="bold" />
-
-                            <Switch
-                                android:id="@+id/switchVibration"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:checked="true" />
-
-                        </LinearLayout>
-
-                        <!-- Snooze Duration -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="Snooze Duration"
-                                android:textColor="@color/primary_text"
-                                android:textSize="16sp"
-                                android:textStyle="bold" />
-
-                            <Spinner
-                                android:id="@+id/spinnerSnooze"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="16dp" />
-
-                        </LinearLayout>
-
-                    </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
                 </LinearLayout>
 
