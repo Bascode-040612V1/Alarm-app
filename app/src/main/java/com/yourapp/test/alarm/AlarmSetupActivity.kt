@@ -20,6 +20,7 @@ import android.text.format.DateFormat
 import android.util.Log
 import android.view.View
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
@@ -106,6 +107,20 @@ class AlarmSetupActivity : AppCompatActivity() {
     private var voicePreviewPlayer: MediaPlayer? = null
 
     private lateinit var dayChips: Map<Int, Chip>
+    
+    // Audio permission launcher
+    private val recordPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Log.d("AlarmSetupActivity", "Audio recording permission granted")
+        } else {
+            Toast.makeText(this, "Audio recording permission is required for voice alarms", Toast.LENGTH_LONG).show()
+            // Disable voice recording features if permission denied
+            buttonRecordVoice.isEnabled = false
+            switchVoiceOverlay.isEnabled = false
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -128,8 +143,8 @@ class AlarmSetupActivity : AppCompatActivity() {
 
         existingAlarm?.let { populateExistingAlarm(it) }
 
-        // Request record audio permission
-        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO_PERMISSION)
+        // Request record audio permission with modern approach
+        requestAudioPermission()
     }
 
     private fun initViews() {
@@ -1174,6 +1189,46 @@ class AlarmSetupActivity : AppCompatActivity() {
     private fun stopAllPreviews() {
         stopRingtonePreview()
         stopVoicePreview()
+    }
+    
+    private fun requestAudioPermission() {
+        when {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                // Permission already granted
+                Log.d("AlarmSetupActivity", "Audio recording permission already granted")
+            }
+            shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) -> {
+                // Show rationale dialog
+                AlertDialog.Builder(this)
+                    .setTitle("Audio Recording Permission")
+                    .setMessage("This app needs audio recording permission to create voice alarms. Voice recordings will be used only for alarm customization.")
+                    .setPositiveButton("Grant Permission") { _, _ ->
+                        recordPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                    .setNegativeButton("Skip") { dialog, _ ->
+                        dialog.dismiss()
+                        Toast.makeText(this, "Voice recording features will be disabled", Toast.LENGTH_LONG).show()
+                        disableVoiceFeatures()
+                    }
+                    .show()
+            }
+            else -> {
+                // Request permission directly
+                recordPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+    }
+    
+    private fun disableVoiceFeatures() {
+        buttonRecordVoice.isEnabled = false
+        buttonPlayVoice.isEnabled = false
+        buttonDeleteVoice.isEnabled = false
+        switchVoiceOverlay.isEnabled = false
+        switchVoiceOverlay.isChecked = false
+        textVoiceStatus.text = "Voice recording unavailable - permission denied"
     }
     
     override fun onDestroy() {

@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorOnPrimary">
+    <!-- Developer/Code icon with contact symbol -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M9.4,16.6L4.8,12l4.6,-4.6L8,6l-6,6 6,6 1.4,-1.4zM14.6,16.6l4.6,-4.6 -4.6,-4.6L16,6l6,6 -6,6 -1.4,-1.4z"/>
+    <!-- Small dot indicator -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M19,3 A2,2 0 0,1 21,5 A2,2 0 0,1 19,7 A2,2 0 0,1 17,5 A2,2 0 0,1 19,3 Z"/>
+</vector>

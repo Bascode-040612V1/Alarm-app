@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:allowBackup="true"
@@ -51,6 +52,12 @@
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:taskAffinity=""
             android:allowTaskReparenting="false" />
+        
+        <activity
+            android:name=".DeveloperContactActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Alarm"
+            android:parentActivityName=".AlarmScreenActivity" />
         
         <receiver
             android:name=".AlarmReceiver"

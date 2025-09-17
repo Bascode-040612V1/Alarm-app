@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import android.text.format.DateFormat
 import android.widget.Toast
@@ -256,12 +257,27 @@ class MainActivity : AppCompatActivity() {
                     pendingIntent
                 )
             }
+            Log.d("MainActivity", "Single alarm scheduled successfully for ${alarmItem.time}")
         } catch (e: SecurityException) {
-            Toast.makeText(this, "Please allow exact alarm permission in settings", Toast.LENGTH_LONG).show()
+            Log.e("MainActivity", "Permission denied for exact alarm scheduling", e)
+            Toast.makeText(this, "Please allow exact alarm permission in settings for reliable alarms", Toast.LENGTH_LONG).show()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val settingsIntent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                startActivity(settingsIntent)
+                try {
+                    val settingsIntent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                    startActivity(settingsIntent)
+                } catch (ex: Exception) {
+                    Log.e("MainActivity", "Could not open alarm settings", ex)
+                    // Fallback: Try less precise scheduling
+                    fallbackAlarmScheduling(alarmManager, alarmItem, pendingIntent)
+                }
+            } else {
+                // For pre-Android 12, try fallback scheduling
+                fallbackAlarmScheduling(alarmManager, alarmItem, pendingIntent)
             }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Unexpected error scheduling single alarm", e)
+            // Try fallback scheduling method
+            fallbackAlarmScheduling(alarmManager, alarmItem, pendingIntent)
         }
     }
     
@@ -330,7 +346,13 @@ class MainActivity : AppCompatActivity() {
             }
             Log.d("MainActivity", "Scheduled repeating alarm for ${getDayName(dayOfWeek)} at ${alarmItem.time} (${calendar.time})")
         } catch (e: SecurityException) {
-            Toast.makeText(this, "Please allow exact alarm permission in settings", Toast.LENGTH_LONG).show()
+            Log.e("MainActivity", "Permission denied for repeating alarm scheduling", e)
+            Toast.makeText(this, "Please allow exact alarm permission in settings for reliable alarms", Toast.LENGTH_LONG).show()
+            // Try fallback scheduling for repeating alarms
+            fallbackRepeatingAlarmScheduling(alarmManager, alarmItem, dayOfWeek, calendar, pendingIntent)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Unexpected error scheduling repeating alarm", e)
+            fallbackRepeatingAlarmScheduling(alarmManager, alarmItem, dayOfWeek, calendar, pendingIntent)
         }
     }
     
@@ -430,6 +452,37 @@ class MainActivity : AppCompatActivity() {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+        
+        // Request battery optimization exemption for reliable alarms
+        requestBatteryOptimizationExemption()
+    }
+    
+    private fun requestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                AlertDialog.Builder(this)
+                    .setTitle("Battery Optimization")
+                    .setMessage("To ensure alarms work reliably, please disable battery optimization for this app. This prevents the system from stopping alarms during sleep mode.")
+                    .setPositiveButton("Open Settings") { _, _ ->
+                        try {
+                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                            intent.data = Uri.parse("package:$packageName")
+                            startActivity(intent)
+                        } catch (e: Exception) {
+                            // Fallback to general battery optimization settings
+                            val fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                            startActivity(fallbackIntent)
+                        }
+                    }
+                    .setNegativeButton("Skip") { dialog, _ ->
+                        dialog.dismiss()
+                        Toast.makeText(this, "Alarms may not work reliably in battery saver mode", Toast.LENGTH_LONG).show()
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+        }
     }
     
     private fun formatTimeForDisplay(time24Hour: String): String {
@@ -488,6 +541,54 @@ class MainActivity : AppCompatActivity() {
                     .setCancelable(false)
                     .show()
             }
+        }
+    }
+    
+    /**
+     * Fallback alarm scheduling when exact scheduling fails
+     */
+    private fun fallbackAlarmScheduling(alarmManager: AlarmManager, alarmItem: AlarmItem, pendingIntent: PendingIntent) {
+        try {
+            Log.w("MainActivity", "Using fallback alarm scheduling for alarm: ${alarmItem.title}")
+            
+            // Try using set() for less precise but more compatible scheduling
+            alarmManager.set(
+                AlarmManager.RTC_WAKEUP,
+                alarmItem.calendar.timeInMillis,
+                pendingIntent
+            )
+            
+            Toast.makeText(this, "Alarm scheduled with reduced precision due to system limitations", Toast.LENGTH_LONG).show()
+            Log.d("MainActivity", "Fallback alarm scheduled for ${alarmItem.time}")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Fallback alarm scheduling also failed", e)
+            Toast.makeText(this, "Failed to schedule alarm. Please check system alarm settings.", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    /**
+     * Fallback scheduling for repeating alarms
+     */
+    private fun fallbackRepeatingAlarmScheduling(
+        alarmManager: AlarmManager, 
+        alarmItem: AlarmItem, 
+        dayOfWeek: Int, 
+        calendar: Calendar, 
+        pendingIntent: PendingIntent
+    ) {
+        try {
+            Log.w("MainActivity", "Using fallback repeating alarm scheduling for ${getDayName(dayOfWeek)}")
+            
+            // Use less precise scheduling method
+            alarmManager.set(
+                AlarmManager.RTC_WAKEUP,
+                calendar.timeInMillis,
+                pendingIntent
+            )
+            
+            Log.d("MainActivity", "Fallback repeating alarm scheduled for ${getDayName(dayOfWeek)} at ${alarmItem.time}")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Fallback repeating alarm scheduling failed for ${getDayName(dayOfWeek)}", e)
         }
     }
 }

@@ -3,6 +3,7 @@ package com.yourapp.test.alarm
 import android.content.Context
 import android.media.MediaPlayer
 import android.media.MediaRecorder
+import android.os.Build
 import android.util.Log
 import java.io.File
 import java.io.IOException
@@ -22,30 +23,62 @@ class VoiceRecordingManager(private val context: Context) {
     
     fun startRecording(alarmId: Int): Boolean {
         return try {
+            // Check if already recording
+            if (isRecording) {
+                Log.w(TAG, "Recording already in progress")
+                return false
+            }
+            
             // Create recordings directory if it doesn't exist
             val recordingsDir = File(context.filesDir, RECORDING_DIRECTORY)
             if (!recordingsDir.exists()) {
-                recordingsDir.mkdirs()
+                val created = recordingsDir.mkdirs()
+                if (!created) {
+                    Log.e(TAG, "Failed to create recordings directory")
+                    return false
+                }
             }
             
             // Create unique recording file for this alarm
             recordingFile = File(recordingsDir, "alarm_voice_${alarmId}_${System.currentTimeMillis()}.3gp")
             
-            mediaRecorder = MediaRecorder().apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-                setOutputFile(recordingFile!!.absolutePath)
-                
-                prepare()
-                start()
+            // Clean up any previous recorder
+            stopRecording()
+            
+            mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(context)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }.apply {
+                try {
+                    setAudioSource(MediaRecorder.AudioSource.MIC)
+                    setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
+                    setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                    setOutputFile(recordingFile!!.absolutePath)
+                    
+                    prepare()
+                    start()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to configure MediaRecorder", e)
+                    release()
+                    throw e
+                }
             }
             
             isRecording = true
             Log.d(TAG, "Recording started: ${recordingFile!!.absolutePath}")
             true
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Audio recording permission denied", e)
+            stopRecording()
+            false
         } catch (e: IOException) {
-            Log.e(TAG, "Failed to start recording", e)
+            Log.e(TAG, "Failed to start recording - IO error", e)
+            stopRecording()
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error starting recording", e)
             stopRecording()
             false
         }

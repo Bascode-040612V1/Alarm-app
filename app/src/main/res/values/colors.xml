@@ -29,4 +29,7 @@
     <color name="chip_unselected">#533A71</color>
     <color name="chip_text_selected">#FFFFFF</color>
     <color name="chip_text_unselected">#E0E0E0</color>
+    
+    <!-- Additional UI Colors -->
+    <color name="primary_color">#E94560</color>
 </resources>
